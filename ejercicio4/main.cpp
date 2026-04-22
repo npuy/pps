@@ -7,29 +7,26 @@ struct Data
 {
     float x;
     float y;
+    float n;
+    float ln;
 };
 
 Data parseLine(const std::string &line);
-float addX(const float &acc, const Data &data);
-float addY(const float &acc, const Data &data);
-float addXY(const float &acc, const Data &data);
-float addX2(const float &acc, const Data &data);
-float addY2(const float &acc, const Data &data);
+float addLN(const float &acc, const Data &data);
+float addLNminusAvgSquared(const float &acc, const Data &data, float avgLN);
 
 int main(int argc, char *argv[])
 {
     // Obtener el nombre del archivo por parametro
     const char *fname;
-    float x_k;
-    if (argc < 3)
+    if (argc < 2)
     {
-        std::cerr << "Usage: " << argv[0] << " <filename> <x_k>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
         exit(1);
     }
     else
     {
         fname = argv[1];
-        x_k = std::stof(argv[2]);
         printf("Archivo ingresado: %s\n", fname);
     }
 
@@ -38,33 +35,40 @@ int main(int argc, char *argv[])
     list.loadFromFile(fname, parseLine);
 
     // Procesar los datos
-    float sumX = list.reduce(addX, 0.0f);
-    float sumY = list.reduce(addY, 0.0f);
+    int count = list.count();
 
-    int n = list.count();
+    // Calcular meddia de valores ln(n)
+    float sumLN = list.reduce(addLN, 0.0f);
+    float avgLN = sumLN / count;
 
-    float avgX = sumX / n;
-    float avgY = sumY / n;
+    // Calcular varianza de ln(n)
+    float sumLNminusAvgSquared = list.reduce(addLNminusAvgSquared, 0.0f, avgLN);
+    float varianceLN = sumLNminusAvgSquared / (count - 1);
 
-    float sumXY = list.reduce(addXY, 0.0f);
-    float sumX2 = list.reduce(addX2, 0.0f);
-    float sumY2 = list.reduce(addY2, 0.0f);
+    // Calcular desviacion estandar de ln(n)
+    float stddevLN = sqrt(varianceLN);
 
-    float b1 = (sumXY - n * avgX * avgY) / (sumX2 - n * avgX * avgX);
-    float b0 = avgY - b1 * avgX;
+    // Calcular rangos logaritmicos
+    float lnVS = avgLN - 2 * stddevLN;
+    float lnS = avgLN - stddevLN;
+    float lnM = avgLN;
+    float lnL = avgLN + stddevLN;
+    float lnVL = avgLN + 2 * stddevLN;
 
-    float r = (n * sumXY - sumX * sumY) / sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
-    float r2 = r * r;
-
-    float y_k = b0 + b1 * x_k;
+    // Calcular valores medios de cada rango
+    float VS = exp(lnVS);
+    float S = exp(lnS);
+    float M = exp(lnM);
+    float L = exp(lnL);
+    float VL = exp(lnVL);
 
     // Imprimir los resultados
     std::cout << std::fixed << std::setprecision(4);
-    std::cout << "b0: " << b0 << std::endl;
-    std::cout << "b1: " << b1 << std::endl;
-    std::cout << "r: " << r << std::endl;
-    std::cout << "r^2: " << r2 << std::endl;
-    std::cout << "y_k: " << y_k << std::endl;
+    std::cout << "VS: " << VS << std::endl;
+    std::cout << "S: " << S << std::endl;
+    std::cout << "M: " << M << std::endl;
+    std::cout << "L: " << L << std::endl;
+    std::cout << "VL: " << VL << std::endl;
 
     return 0;
 }
@@ -73,30 +77,20 @@ Data parseLine(const std::string &line)
 {
     Data data;
     sscanf(line.c_str(), "%f,%f", &data.x, &data.y);
+
+    data.n = data.x / data.y;
+    data.ln = log(data.n);
+
     return data;
 }
 
-float addX(const float &acc, const Data &data)
+float addLN(const float &acc, const Data &data)
 {
-    return acc + data.x;
+    return acc + data.ln;
 }
 
-float addY(const float &acc, const Data &data)
+float addLNminusAvgSquared(const float &acc, const Data &data, float avgLN)
 {
-    return acc + data.y;
-}
-
-float addXY(const float &acc, const Data &data)
-{
-    return acc + data.x * data.y;
-}
-
-float addX2(const float &acc, const Data &data)
-{
-    return acc + data.x * data.x;
-}
-
-float addY2(const float &acc, const Data &data)
-{
-    return acc + data.y * data.y;
+    float diff = data.ln - avgLN;
+    return acc + diff * diff;
 }

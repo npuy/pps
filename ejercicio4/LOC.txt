@@ -1,11 +1,11 @@
-88 LOC base -> ejercicio 1
+145 LOC base -> ejercicio 3
 
-28 LOC deleted -> casi todo main de ej 1
+30 LOC deleted
 
-22 LOC modified -> algunas cosas de list.h para hacerlo generico
+10 LOC modified
 
-85 LOC added -> entre list.h y main
+27 LOC added
 
-87 LOC new reusable -> toda list.h
+87 LOC reused -> toda list.h (tambien se cuenta en base)
 
-145 LOC total -> base - deleted + added
+142 LOC total -> base - deleted + added
