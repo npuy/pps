@@ -1,0 +1,7 @@
+0 LOC base
+
+72 LOC added
+
+42 LOC new reusable -> toda SimpsonIntegration.h
+
+72 LOC total
