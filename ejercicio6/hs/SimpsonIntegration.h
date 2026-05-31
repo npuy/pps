@@ -61,6 +61,16 @@ public:
 
         return integral_curr;
     }
+
+    void setFinIntervalo(double fin)
+    {
+        fin_intervalo = fin;
+    }
+
+    double getFinIntervalo() const
+    {
+        return fin_intervalo;
+    }
 };
 
 #endif

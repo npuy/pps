@@ -1,7 +1,11 @@
-0 LOC base
+72 LOC base
 
-72 LOC added
+36 LOC added
 
-42 LOC new reusable -> toda SimpsonIntegration.h
+4 LOC modified
 
-72 LOC total
+2 LOC deleted
+
+46 LOC new reusable -> toda SimpsonIntegration.h
+
+107 LOC total
