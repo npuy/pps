@@ -141,14 +141,14 @@ public:
         file.close();
     };
 
-    template <typename U>
-    U reduce(U (*reduceFunc)(const U &, const T &), U initialValue)
+    template <typename U, typename... Args>
+    U reduce(U (*reduceFunc)(const U &, const T &, Args... args), U initialValue, Args... args)
     {
         U result = initialValue;
         Node *current = this->head;
         while (current)
         {
-            result = reduceFunc(result, current->data);
+            result = reduceFunc(result, current->data, args...);
             current = current->next;
         }
         return result;
