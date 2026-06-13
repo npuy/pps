@@ -39,6 +39,8 @@ private:
 
     bool processFile(FileInfo &fileInfo)
     {
+        inBlockComment = false;
+        inClass = false;
         std::ifstream file(fileInfo.path);
         if (!file.is_open())
         {
