@@ -3,39 +3,55 @@
 
 #include "SimpsonIntegration.h"
 #include "list.h"
+#include "GaussMethod.h"
 
 struct Data
 {
     float x;
     float y;
+    float w;
+    float z;
 };
 
 Data parseLine(const std::string &line);
+float addW(const float &acc, const Data &data);
 float addX(const float &acc, const Data &data);
 float addY(const float &acc, const Data &data);
-float addXY(const float &acc, const Data &data);
+float addZ(const float &acc, const Data &data);
+float addW2(const float &acc, const Data &data);
+float addWX(const float &acc, const Data &data);
+float addWY(const float &acc, const Data &data);
+float addWZ(const float &acc, const Data &data);
 float addX2(const float &acc, const Data &data);
+float addXY(const float &acc, const Data &data);
+float addXZ(const float &acc, const Data &data);
 float addY2(const float &acc, const Data &data);
+float addYZ(const float &acc, const Data &data);
+float addZ2(const float &acc, const Data &data);
 double gamma(double x);
 double ajustarX(double x, double d, double err);
 bool isErrorAcceptable(double error, double cotaError);
-float addXminusAvgX(const float &acc, const Data &data, float avgX);
-float stdDevXYStep(const float &acc, const Data &data, float b0, float b1);
+float addWAvg(const float &acc, const Data &data, float avg);
+float addXAvg(const float &acc, const Data &data, float avg);
+float addYAvg(const float &acc, const Data &data, float avg);
+float varStep(const float &acc, const Data &data, float b0, float b1, float b2, float b3);
 
 int main(int argc, char *argv[])
 {
     // Obtener el nombre del archivo por parametro
     const char *fname;
-    float x_k;
-    if (argc < 3)
+    float w_k, x_k, y_k;
+    if (argc < 5)
     {
-        std::cerr << "Usage: " << argv[0] << " <filename> <x_k>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <filename> <w_k> <x_k> <y_k>" << std::endl;
         exit(1);
     }
     else
     {
         fname = argv[1];
-        x_k = std::stof(argv[2]);
+        w_k = std::stof(argv[2]);
+        x_k = std::stof(argv[3]);
+        y_k = std::stof(argv[4]);
         printf("Archivo ingresado: %s\n", fname);
     }
 
@@ -43,32 +59,44 @@ int main(int argc, char *argv[])
     List<Data> list;
     list.loadFromFile(fname, parseLine);
 
-    // Procesar los datos
+    // Calcular terminos de la matriz
+    int n = list.count();
+    float sumW = list.reduce(addW, 0.0f);
     float sumX = list.reduce(addX, 0.0f);
     float sumY = list.reduce(addY, 0.0f);
-
-    int n = list.count();
-
-    float avgX = sumX / n;
-    float avgY = sumY / n;
-
-    float sumXY = list.reduce(addXY, 0.0f);
+    float sumZ = list.reduce(addZ, 0.0f);
+    float sumW2 = list.reduce(addW2, 0.0f);
+    float sumWX = list.reduce(addWX, 0.0f);
+    float sumWY = list.reduce(addWY, 0.0f);
+    float sumWZ = list.reduce(addWZ, 0.0f);
     float sumX2 = list.reduce(addX2, 0.0f);
+    float sumXY = list.reduce(addXY, 0.0f);
+    float sumXZ = list.reduce(addXZ, 0.0f);
     float sumY2 = list.reduce(addY2, 0.0f);
+    float sumYZ = list.reduce(addYZ, 0.0f);
 
-    float b1 = (sumXY - n * avgX * avgY) / (sumX2 - n * avgX * avgX);
-    float b0 = avgY - b1 * avgX;
+    float matriz[4][5] = {
+        {static_cast<float>(n), sumW, sumX, sumY, sumZ},
+        {sumW, sumW2, sumWX, sumWY, sumWZ},
+        {sumX, sumWX, sumX2, sumXY, sumXZ},
+        {sumY, sumWY, sumXY, sumY2, sumYZ},
+    };
 
-    float r = (n * sumXY - sumX * sumY) / sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
-    float r2 = r * r;
+    // Calcular parametros beta b0, b1, b2 y b3 con metodo de gauss
+    GaussMethod gauss((float *)matriz);
+    float result[4];
+    gauss.solve(4, result);
+    float b0 = result[0];
+    float b1 = result[1];
+    float b2 = result[2];
+    float b3 = result[3];
 
-    float y_k = b0 + b1 * x_k;
-
-    // Calcular tail area
-    double dof, finIntervalo, inicioIntervalo, cotaError, numSegIni;
-    dof = n - 2;
+    // Calcular t(0.35, n-4)
+    double dof, finIntervalo, inicioIntervalo, cotaError, numSegIni, pEsperado;
+    dof = n - 4;
+    pEsperado = 0.35;
     inicioIntervalo = 0.0;
-    finIntervalo = abs(r) * sqrt((n - 2) / (1 - r2));
+    finIntervalo = 1.0;
     cotaError = 0.000001;
     numSegIni = 10;
 
@@ -79,19 +107,6 @@ int main(int argc, char *argv[])
         double potencia = pow(1 + (x * x) / dof, -(dof + 1) / 2);
         return (numerador / denominador) * potencia;
     };
-
-    SimpsonIntegration integrator1(cotaError, numSegIni, finIntervalo, inicioIntervalo, tDist);
-    double p = integrator1.integrate();
-    double tailArea = 1 - 2 * p;
-
-    // Calcular range
-    double pEsperado;
-    dof = n - 2;
-    pEsperado = 0.35;
-    inicioIntervalo = 0.0;
-    finIntervalo = 1.0;
-    cotaError = 0.000001;
-    numSegIni = 10;
 
     SimpsonIntegration integrator(cotaError, numSegIni, finIntervalo, inicioIntervalo, tDist);
     double resultado = integrator.integrate();
@@ -127,26 +142,37 @@ int main(int argc, char *argv[])
 
     double t035dof = integrator.getFinIntervalo();
 
-    float sumStdDevXY = list.reduce(stdDevXYStep, 0.0f, b0, b1);
-    float stdDevXY = sqrt(sumStdDevXY / (n - 2));
+    // Calcular desviacion estandar
+    double varSum = list.reduce(varStep, 0.0f, b0, b1, b2, b3);
+    double var = varSum / (n - 4);
+    double stdDev = sqrt(var);
 
-    float sumXminusAvgX2 = list.reduce(addXminusAvgX, 0.0f, avgX);
+    // Calcular rango
+    float avgW = sumW / n;
+    float sumWAvg = list.reduce(addWAvg, 0.0f, avgW);
+    float avgX = sumX / n;
+    float sumXAvg = list.reduce(addXAvg, 0.0f, avgX);
+    float avgY = sumY / n;
+    float sumYAvg = list.reduce(addYAvg, 0.0f, avgY);
+    float wTerm = pow(w_k - avgW, 2) / sumWAvg;
+    float xTerm = pow(x_k - avgX, 2) / sumXAvg;
+    float yTerm = pow(y_k - avgY, 2) / sumYAvg;
+    float rootTerm = sqrt(1 + 1 / n + wTerm + xTerm + yTerm);
 
-    double range = t035dof * stdDevXY * sqrt(1 + (1.0 / n) + (pow(x_k - avgX, 2) / sumXminusAvgX2));
-    double UPI = y_k + range;
-    double LPI = y_k - range;
+    float range = t035dof * stdDev * rootTerm;
+
+    // Calculamos las horas proyectadas
+    float projectedHours = b0 + w_k * b1 + x_k * b2 + y_k * b3;
+    float UPI = projectedHours + range;
+    float LPI = projectedHours - range;
 
     // Imprimir los resultados
-    std::cout << "r: " << r << std::endl;
-    std::cout << "r^2: " << r2 << std::endl;
-
-    std::cout << "tailArea: " << tailArea << std::endl;
-
+    // b0, b1, b2, b3, projectedHours, UPI, LPI
     std::cout << "b0: " << b0 << std::endl;
     std::cout << "b1: " << b1 << std::endl;
-    std::cout << "y_k: " << y_k << std::endl;
-
-    std::cout << "range: " << range << std::endl;
+    std::cout << "b2: " << b2 << std::endl;
+    std::cout << "b3: " << b3 << std::endl;
+    std::cout << "projectedHours: " << projectedHours << std::endl;
     std::cout << "UPI: " << UPI << std::endl;
     std::cout << "LPI: " << LPI << std::endl;
 
@@ -156,7 +182,7 @@ int main(int argc, char *argv[])
 Data parseLine(const std::string &line)
 {
     Data data;
-    sscanf(line.c_str(), "%f,%f", &data.x, &data.y);
+    sscanf(line.c_str(), "%f,%f,%f,%f", &data.w, &data.x, &data.y, &data.z);
     return data;
 }
 
@@ -170,9 +196,29 @@ float addY(const float &acc, const Data &data)
     return acc + data.y;
 }
 
-float addXY(const float &acc, const Data &data)
+float addW(const float &acc, const Data &data)
 {
-    return acc + data.x * data.y;
+    return acc + data.w;
+}
+
+float addZ(const float &acc, const Data &data)
+{
+    return acc + data.z;
+}
+
+float addW2(const float &acc, const Data &data)
+{
+    return acc + data.w * data.w;
+}
+
+float addWX(const float &acc, const Data &data)
+{
+    return acc + data.x * data.w;
+}
+
+float addWY(const float &acc, const Data &data)
+{
+    return acc + data.y * data.w;
 }
 
 float addX2(const float &acc, const Data &data)
@@ -180,9 +226,34 @@ float addX2(const float &acc, const Data &data)
     return acc + data.x * data.x;
 }
 
+float addXY(const float &acc, const Data &data)
+{
+    return acc + data.x * data.y;
+}
+
+float addXZ(const float &acc, const Data &data)
+{
+    return acc + data.x * data.z;
+}
+
 float addY2(const float &acc, const Data &data)
 {
     return acc + data.y * data.y;
+}
+
+float addYZ(const float &acc, const Data &data)
+{
+    return acc + data.y * data.z;
+}
+
+float addWZ(const float &acc, const Data &data)
+{
+    return acc + data.w * data.z;
+}
+
+float addZ2(const float &acc, const Data &data)
+{
+    return acc + data.z * data.z;
 }
 
 double gamma(double x)
@@ -207,14 +278,26 @@ bool isErrorAcceptable(double error, double cotaError)
     return std::abs(error) < cotaError;
 }
 
-float addXminusAvgX(const float &acc, const Data &data, float avgX)
+float addWAvg(const float &acc, const Data &data, float avg)
 {
-    float diff = data.x - avgX;
+    float diff = data.w - avg;
     return acc + diff * diff;
 }
 
-float stdDevXYStep(const float &acc, const Data &data, float b0, float b1)
+float addXAvg(const float &acc, const Data &data, float avg)
 {
-    float diff = data.y - b0 - data.x * b1;
+    float diff = data.x - avg;
+    return acc + diff * diff;
+}
+
+float addYAvg(const float &acc, const Data &data, float avg)
+{
+    float diff = data.y - avg;
+    return acc + diff * diff;
+}
+
+float varStep(const float &acc, const Data &data, float b0, float b1, float b2, float b3)
+{
+    float diff = data.z - b0 - data.w * b1 - data.x * b2 - data.y * b3;
     return acc + diff * diff;
 }

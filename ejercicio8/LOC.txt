@@ -1,9 +1,11 @@
-145 LOC base -> ejercicio 3
+267 LOC base -> ejercicio 7
 
-3 LOC deleted
+30 LOC deleted
 
-79 LOC added -> en main
+116 LOC added
 
-46 LOC reused -> SimpsonIntegration.h
+14 LOC modified
 
-267 LOC total -> base - deleted + added
+33 LOC new reusable -> GaussMethod.h
+
+353 LOC total
