@@ -1,0 +1,9 @@
+145 LOC base -> ejercicio 3
+
+3 LOC deleted
+
+79 LOC added -> en main
+
+46 LOC reused -> SimpsonIntegration.h
+
+267 LOC total -> base - deleted + added
