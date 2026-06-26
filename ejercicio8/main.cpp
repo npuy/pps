@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
     float wTerm = pow(w_k - avgW, 2) / sumWAvg;
     float xTerm = pow(x_k - avgX, 2) / sumXAvg;
     float yTerm = pow(y_k - avgY, 2) / sumYAvg;
-    float rootTerm = sqrt(1 + 1 / n + wTerm + xTerm + yTerm);
+    float rootTerm = sqrt(1 + 1.0f / n + wTerm + xTerm + yTerm);
 
     float range = t035dof * stdDev * rootTerm;
 
